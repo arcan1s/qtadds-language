@@ -20,6 +20,7 @@
 
 #include <QFile>
 #include <QLocale>
+#include <QSettings>
 
 #include "config.h"
 
@@ -32,7 +33,7 @@ Language::Language()
 QString Language::checkLanguage(const QString language)
 {
     QStringList availableLanguages = getAvailableLanguages();
-    if (availableLanguages.count() == 0) return QString();
+    if (availableLanguages.count() == 0) return QString("");
     for (int i=0; i<availableLanguages.count(); i++)
         if (language == availableLanguages[i])
             return availableLanguages[i];
@@ -63,28 +64,9 @@ QString Language::defineLanguage(const QString configPath, const QString options
 
 QString Language::defineLanguageFromFile(const QString configPath)
 {
-    QMap<QString, QString> settings;
-    if (configPath.isEmpty())
-        return QString("");
-    QFile configFile(configPath);
-    QString fileStr;
-    if (!configFile.open(QIODevice::ReadOnly))
-        return QString("");
-    while (true) {
-        fileStr = QString(configFile.readLine()).trimmed();
-        if ((fileStr.isEmpty()) && (!configFile.atEnd())) continue;
-        if ((fileStr[0] == QChar('#')) && (!configFile.atEnd())) continue;
-        if ((fileStr[0] == QChar(';')) && (!configFile.atEnd())) continue;
-        if (fileStr.contains(QChar('=')))
-            settings[fileStr.split(QChar('='))[0]] = fileStr.split(QChar('='))[1];
-        if (configFile.atEnd()) break;
-    }
-    configFile.close();
+    QSettings settings(configPath, QSettings::IniFormat);
 
-    if (settings.contains(QString(LANGUAGE_KEY)))
-        return settings[QString(LANGUAGE_KEY)];
-    else
-        return QString("");
+    return settings.value(QString(LANGUAGE_KEY), QString()).toString();
 }
 
 
@@ -104,8 +86,7 @@ QMap<QString, QString> Language::parseOptions(const QString options)
 {
     QMap<QString, QString> optionsDict;
     for (int i=0; i<options.split(QChar(',')).count(); i++) {
-        if (options.split(QChar(','))[i].split(QChar('=')).count() < 2)
-            continue;
+        if (options.split(QChar(','))[i].split(QChar('=')).count() < 2) continue;
         optionsDict[options.split(QChar(','))[i].split(QChar('='))[0]] =
                 options.split(QChar(','))[i].split(QChar('='))[1];
     }
