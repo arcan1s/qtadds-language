@@ -66,7 +66,11 @@ QString Language::defineLanguageFromFile(const QString configPath)
 {
     QSettings settings(configPath, QSettings::IniFormat);
 
-    return settings.value(QString(LANGUAGE_KEY), QString()).toString();
+    settings.beginGroup("Common");
+    QString language = settings.value(QString(LANGUAGE_KEY), QString()).toString();
+    settings.endGroup();
+
+    return language;
 }
 
 
