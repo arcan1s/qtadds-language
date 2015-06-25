@@ -21,11 +21,18 @@
 #include <QFile>
 #include <QLocale>
 #include <QSettings>
+#include <QRegExp>
 
 #include "config.h"
 
 
-Language::Language()
+Language::Language(QObject *parent)
+    : QObject(parent)
+{
+}
+
+
+Language::~Language()
 {
 }
 
@@ -33,30 +40,33 @@ Language::Language()
 QString Language::checkLanguage(const QString language)
 {
     QStringList availableLanguages = getAvailableLanguages();
-    if (availableLanguages.count() == 0) return QString("");
-    for (int i=0; i<availableLanguages.count(); i++)
-        if (language == availableLanguages[i])
-            return availableLanguages[i];
-    for (int i=0; i<availableLanguages.count(); i++)
-        if (language.contains(availableLanguages[i] + QChar('_')))
-            return availableLanguages[i];
+    if (availableLanguages.isEmpty()) return QString();
 
-    return availableLanguages[0];
+    QStringList filtered = availableLanguages.filter(language);
+    filtered.append(availableLanguages.filter(QRegExp(QString("^%1").arg(language.split(QChar('_'))[0]))));
+
+    if (filtered.isEmpty())
+        return availableLanguages[0];
+    else
+        return filtered[0];
 }
 
 
 QString Language::defineLanguage(const QString configPath, const QString options)
 {
-    QMap<QString, QString> optionsDict = parseOptions(options);
-    if (optionsDict.contains(QString(LANGUAGE_KEY)))
-        if (getAvailableLanguages().contains(optionsDict[QString(LANGUAGE_KEY)]))
-            return optionsDict[QString(LANGUAGE_KEY)];
+    // create instance
+    Language *langObject = new Language(nullptr);
 
-    QString language;
-    language = defineLanguageFromFile(configPath);
+    // define language
+    QString language = langObject->parseOptions(options);
     if (language.isEmpty())
-        language = defineLanguageFromLocale();
-    language = checkLanguage(language);
+        language = langObject->defineLanguageFromFile(configPath);
+    if (language.isEmpty())
+        language = langObject->defineLanguageFromLocale();
+    language = langObject->checkLanguage(language);
+
+    // clear
+    delete langObject;
 
     return language;
 }
@@ -66,7 +76,7 @@ QString Language::defineLanguageFromFile(const QString configPath)
 {
     QSettings settings(configPath, QSettings::IniFormat);
 
-    settings.beginGroup("Common");
+    settings.beginGroup(QString(LANGUAGE_SECTION));
     QString language = settings.value(QString(LANGUAGE_KEY), QString()).toString();
     settings.endGroup();
 
@@ -86,14 +96,14 @@ QStringList Language::getAvailableLanguages()
 }
 
 
-QMap<QString, QString> Language::parseOptions(const QString options)
+QString Language::parseOptions(const QString options)
 {
-    QMap<QString, QString> optionsDict;
+    QString language;
     for (int i=0; i<options.split(QChar(',')).count(); i++) {
         if (options.split(QChar(','))[i].split(QChar('=')).count() < 2) continue;
-        optionsDict[options.split(QChar(','))[i].split(QChar('='))[0]] =
-                options.split(QChar(','))[i].split(QChar('='))[1];
+        if (options.split(QChar(','))[i].split(QChar('='))[0] != QString(LANGUAGE_KEY)) continue;
+        language = options.split(QChar(','))[i].split(QChar('='))[1];
     }
 
-    return optionsDict;
+    return language;
 }
